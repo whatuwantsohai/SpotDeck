@@ -1,4 +1,315 @@
-b3e3ff0a66409382bb64ed1d6e44f653ce8971c1      font-size: 14px;
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Spotify Now Playing</title>
+  <link rel="icon" href="assets/Spotify_Primary_Logo_RGB_Green.png" type="image/png">
+  <meta name="theme-color" content="#000000" />
+  
+  <!-- DNS Prefetch & Preconnect for faster API calls -->
+  <link rel="dns-prefetch" href="https://api.spotify.com" />
+  <link rel="preconnect" href="https://api.spotify.com" crossorigin />
+  <link rel="dns-prefetch" href="https://accounts.spotify.com" />
+  <link rel="preconnect" href="https://accounts.spotify.com" crossorigin />
+  <link rel="dns-prefetch" href="https://i.scdn.co" />
+  <link rel="preconnect" href="https://i.scdn.co" crossorigin />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Font (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* Custom font-family */
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Shimmer animation for the progress bar when playing */
+    @keyframes shimmer {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(200%); }
+    }
+    
+    /* Apply shimmer animation via data attribute */
+    [data-playing="true"] .bar-shimmer::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+      animation: shimmer 2.4s linear infinite;
+    }
+
+    /* Initial card entrance animation */
+    @keyframes cardIn {
+      from { 
+        transform: translateY(20px) scale(0.95); 
+        opacity: 0;
+      }
+      to { 
+        transform: translateY(0) scale(1); 
+        opacity: 1;
+      }
+    }
+    
+    /* Class to trigger animation */
+    .card-animate {
+      animation: cardIn 800ms cubic-bezier(.16,1,.3,1) 1 forwards;
+    }
+
+    /* Smooth transitions for text changes */
+    #title, #artists, #album {
+      transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+    }
+
+    /* Album art transitions */
+    #art {
+      transition: opacity 300ms ease-in-out, transform 600ms cubic-bezier(.16,1,.3,1);
+      position: relative;
+      z-index: 2;
+      border-radius: 0.75rem;
+    }
+
+    @media (min-width: 640px) {
+      #art {
+        border-radius: 1rem;
+      }
+    }
+
+    /* Album art container for ambience effect */
+    #artWrap {
+      position: relative;
+      overflow: visible;
+    }
+
+    /* Shrink album when paused */
+    [data-playing="false"] #art {
+      transform: scale(0.95);
+    }
+
+    [data-playing="true"] #art {
+      transform: scale(1);
+    }
+
+    /* Live ambience effect behind album art - kept outside the card */
+    #artAmbience {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: 400px;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 800ms ease-in-out;
+      filter: blur(80px);
+      pointer-events: none;
+    }
+
+    [data-playing="true"] #artAmbience {
+      opacity: 0.8;
+    }
+    
+    @media (min-width: 640px) {
+      #artAmbience {
+        width: 500px;
+        height: 500px;
+      }
+    }
+    
+    @media (min-width: 768px) {
+      #artAmbience {
+        width: 600px;
+        height: 600px;
+      }
+    }
+
+    /* Progress bar smooth animation */
+    #barInner {
+      transition: width 100ms linear;
+    }
+
+    /* Progress bar reset animation */
+    #barInner.reset-animation {
+      transition: width 400ms cubic-bezier(.16,1,.3,1);
+    }
+
+    /* Badge transitions */
+    #state-badge {
+      transition: all 300ms cubic-bezier(.16,1,.3,1);
+    }
+
+    /* Device dot pulse animation */
+    [data-status="online"] #dot {
+      animation: dotPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes dotPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    }
+
+    /* Animated Blobs - REMOVED */
+
+    /* Live ambient background canvas */
+    #liveCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      filter: blur(80px);
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    #liveCanvas.active {
+      opacity: 0.6;
+    }
+
+    /* Settings Modal */
+    #settingsModal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transition: opacity 300ms ease-in-out;
+    }
+
+    #settingsModal.active {
+      display: flex;
+      animation: modalFadeIn 300ms ease-in-out forwards;
+    }
+
+    #settingsModal.closing {
+      animation: modalFadeOut 300ms ease-in-out forwards;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modalFadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    .settings-content {
+      background: #171717;
+      border: 1px solid #404040;
+      border-radius: 24px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      transform: scale(0.95) translateY(20px);
+    }
+
+    #settingsModal.active .settings-content {
+      animation: modalSlideIn 300ms cubic-bezier(.16,1,.3,1) forwards;
+    }
+
+    #settingsModal.closing .settings-content {
+      animation: modalSlideOut 300ms cubic-bezier(.16,1,.3,1) forwards;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes modalSlideOut {
+      from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+      }
+    }
+
+    /* Playback controls styling */
+    .control-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: #262626;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 200ms ease;
+      flex-shrink: 0;
+    }
+
+    @media (min-width: 640px) {
+      .control-btn {
+        width: 56px;
+        height: 56px;
+      }
+    }
+
+    .control-btn:hover {
+      background: #404040;
+      transform: scale(1.05);
+    }
+
+    .control-btn:active {
+      transform: scale(0.95);
+    }
+
+    .control-btn.primary {
+      width: 56px;
+      height: 56px;
+      background: white;
+      color: black;
+    }
+
+    @media (min-width: 640px) {
+      .control-btn.primary {
+        width: 64px;
+        height: 64px;
+      }
+    }
+
+    .control-btn.primary:hover {
+      background: #f5f5f5;
+    }
+
+    /* Visualizer toggle button */
+    .viz-toggle {
+      padding: 8px 16px;
+      border-radius: 12px;
+      border: 1px solid #404040;
+      background: #262626;
+      color: white;
+      font-size: 14px;
       cursor: pointer;
       transition: all 200ms ease;
       display: flex;
@@ -132,7 +443,7 @@ b3e3ff0a66409382bb64ed1d6e44f653ce8971c1      font-size: 14px;
         <button id="logout" aria-label="Logout" class="bg-neutral-800 text-neutral-300 px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 hover:bg-neutral-700 hover:shadow-lg active:scale-95 text-center" style="display:none;">
           Logout
         </button>
-        <button id="fs" aria-label="Toggle fullscreen" class="inline-flex bg-neutral-800 text-neutral-300 p-2 sm:p-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:bg-neutral-700 hover:shadow-lg active:scale-95">
+        <button id="fs" aria-label="Toggle fullscreen" class="hidden sm:inline-block bg-neutral-800 text-neutral-300 p-2 sm:p-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:bg-neutral-700 hover:shadow-lg active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
           </svg>
@@ -208,7 +519,7 @@ b3e3ff0a66409382bb64ed1d6e44f653ce8971c1      font-size: 14px;
   </div>
 
   <script>
-  const SPOTIFY_CLIENT_ID = "8b793abcd48f44d18c4494272426888b"; // Replace with your Spotify Client ID from Spotify Developer Dashboard
+  const SPOTIFY_CLIENT_ID = "YOUR_SPOTIFY_CLIENT_ID_HERE"; // Replace with your Spotify Client ID from Spotify Developer Dashboard
   const here = new URL(window.location.href);
   const basePath = here.pathname.endsWith("/") ? here.pathname : here.pathname + "/";
   const REDIRECT_URI = here.origin + basePath;
@@ -241,7 +552,7 @@ b3e3ff0a66409382bb64ed1d6e44f653ce8971c1      font-size: 14px;
   async function beginAuth() {
     const verifier = randStr(64);
     const challenge = base64url(await sha256(verifier));
-    localStorage.setItem("spnp.code_verifier", verifier);
+    sessionStorage.setItem("spnp.code_verifier", verifier);
 
     const url = new URL("https://accounts.spotify.com/authorize");
     url.searchParams.set("response_type", "code");
@@ -255,7 +566,7 @@ b3e3ff0a66409382bb64ed1d6e44f653ce8971c1      font-size: 14px;
   }
 
   async function exchangeCodeForToken(code) {
-    const verifier = localStorage.getItem("spnp.code_verifier");
+    const verifier = sessionStorage.getItem("spnp.code_verifier");
     if (!verifier) throw new Error("Missing PKCE verifier — start over.");
     const body = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: verifier });
     const res = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
@@ -1141,27 +1452,14 @@ b3e3ff0a66409382bb64ed1d6e44f653ce8971c1      font-size: 14px;
   }
 
   // Controls
- async function toggleFullscreen() {
-  try {
-    if (!document.fullscreenElement) {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-      } else if (document.documentElement.webkitRequestFullscreen) {
-        document.documentElement.webkitRequestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      }
-    }
-  } catch (err) {
-    console.log("Fullscreen not supported:", err);
-  }
-}
-
-els.fs.addEventListener('click', toggleFullscreen);
+  els.connect.addEventListener('click', beginAuth);
+  els.logout.addEventListener('click', () => { clearSession(); onDisconnected(); });
+  els.fs.addEventListener('click', async () => {
+    try {
+      if (!document.fullscreenElement) { await document.documentElement.requestFullscreen(); }
+      else { await document.exitFullscreen(); }
+    } catch (e) { /* ignore */ }
+  });
 
   // Visualizer toggle
   els.visualizer.addEventListener('click', () => {
@@ -1244,9 +1542,17 @@ els.fs.addEventListener('click', toggleFullscreen);
   document.addEventListener('keydown', async (e) => {
     // F key for fullscreen (case-insensitive)
     if (e.key === 'f' || e.key === 'F') {
-  e.preventDefault();
-  toggleFullscreen();
-}
+      e.preventDefault();
+      try {
+        if (!document.fullscreenElement) { 
+          await document.documentElement.requestFullscreen(); 
+        } else { 
+          await document.exitFullscreen(); 
+        }
+      } catch (err) { 
+        console.log('Fullscreen not supported or denied');
+      }
+    }
     // Space for play/pause (when modal not open)
     if (e.key === ' ' && !els.settingsModal.classList.contains('active')) {
       e.preventDefault();
@@ -1271,8 +1577,7 @@ els.fs.addEventListener('click', toggleFullscreen);
     els.visualizer.style.color = 'black';
   }
 
-
-boot();
+  boot();
   </script>
 </body>
 </html>
