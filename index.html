@@ -1452,14 +1452,27 @@
   }
 
   // Controls
-  els.connect.addEventListener('click', beginAuth);
-  els.logout.addEventListener('click', () => { clearSession(); onDisconnected(); });
-  els.fs.addEventListener('click', async () => {
-    try {
-      if (!document.fullscreenElement) { await document.documentElement.requestFullscreen(); }
-      else { await document.exitFullscreen(); }
-    } catch (e) { /* ignore */ }
-  });
+ async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        document.documentElement.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  } catch (err) {
+    console.log("Fullscreen not supported:", err);
+  }
+}
+
+els.fs.addEventListener('click', toggleFullscreen);
 
   // Visualizer toggle
   els.visualizer.addEventListener('click', () => {
