@@ -1555,17 +1555,9 @@ els.fs.addEventListener('click', toggleFullscreen);
   document.addEventListener('keydown', async (e) => {
     // F key for fullscreen (case-insensitive)
     if (e.key === 'f' || e.key === 'F') {
-      e.preventDefault();
-      try {
-        if (!document.fullscreenElement) { 
-          await document.documentElement.requestFullscreen(); 
-        } else { 
-          await document.exitFullscreen(); 
-        }
-      } catch (err) { 
-        console.log('Fullscreen not supported or denied');
-      }
-    }
+  e.preventDefault();
+  toggleFullscreen();
+}
     // Space for play/pause (when modal not open)
     if (e.key === ' ' && !els.settingsModal.classList.contains('active')) {
       e.preventDefault();
