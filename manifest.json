@@ -1,0 +1,16 @@
+{
+  "name": "SpotDeck",
+  "short_name": "SpotDeck",
+  "start_url": "./",
+  "display": "fullscreen",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/Spotify_Primary_Logo_RGB_Green.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
