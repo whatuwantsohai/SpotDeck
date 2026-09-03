@@ -573,7 +573,7 @@
   }
 
   async function exchangeCodeForToken(code) {
-    const verifier = sessionStorage.getItem("spnp.code_verifier");
+    const verifier = localStorage.getItem("spnp.code_verifier");
     if (!verifier) throw new Error("Missing PKCE verifier — start over.");
     const body = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: verifier });
     const res = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
