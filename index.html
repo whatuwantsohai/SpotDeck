@@ -559,7 +559,7 @@
   async function beginAuth() {
     const verifier = randStr(64);
     const challenge = base64url(await sha256(verifier));
-    sessionStorage.setItem("spnp.code_verifier", verifier);
+    localStorage.setItem("spnp.code_verifier", verifier);
 
     const url = new URL("https://accounts.spotify.com/authorize");
     url.searchParams.set("response_type", "code");
